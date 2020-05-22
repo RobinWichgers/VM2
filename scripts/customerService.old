@@ -1,0 +1,146 @@
+#! /bin/bash
+
+# This is the path where all the customers are located.
+custompath=/home/vagrant/VM2/customers
+
+# Menu for new/existing users
+echo "Welcome! Please select an option."
+echo "Create user [1], Existing user [2], Delete user [3]"
+
+# variable for options
+read create_option
+
+# option 1, new user
+if [ $create_option = '1' ]; then
+		# create user
+		echo "What is your name?"
+
+		# variable for customer name
+		read customer_name
+
+		# check whether directory exists. If not, continue
+		if [ ! -d $custompath/$customer_name ]; then
+			
+			# create directory for the new customer
+			mkdir $custompath/$customer_name
+			echo "New folder created"
+
+			# read amount of webservers
+			read -p "Enter the amount of webservers:  " webservers
+
+			# read amount of databaseservers
+			read -p "Enter the amount of database servers:  " dbservers
+
+			# read amount of loadbalancers
+			read -p "Enter the amount of loadbalancers:  " lbs
+			echo "You chose $webservers webservers, $dbservers databases and $lbs load balancers."
+
+			# start with .20 ip address
+			ipCountStart=20
+
+			# variable used in vagrantfile later
+			ipCount=$ipCountStart
+
+			# calculate customerID by amounts of dirs that exists in customer file
+			dirNumber=$(find ~/VM2/customers/* -maxdepth 0 -type d | wc -l)
+
+			# copy basefiles to new customer dir
+			cp -rf ~/VM2/basefiles/* $custompath/$customer_name/
+
+			# change to customer directory
+			cd $custompath/$customer_name
+
+			# read placeholders from copied Vagrantfile, and set inserted variables
+			sudo sed -i "s/%webservers%/$webservers/1" Vagrantfile
+			sudo sed -i "s/%databaseservers%/$dbservers/1" Vagrantfile
+			sudo sed -i "s/%loadbalancers%/$lbs/1" Vagrantfile
+			sudo sed -i "s/%customerID%/$dirNumber/1" Vagrantfile
+			sudo sed -i "s/%ipaddress%/$ipCountStart/1" Vagrantfile
+			sudo sed -i "s/%customerName%/$customer_name/1" Vagrantfile
+			sudo sed -i "s/%environment%/test01/1" Vagrantfile
+			echo "[all:vars]" >> hosts
+			echo "ansible_python_interpreter=/usr/bin/python3" >> hosts
+			# if there are webservers, execute this
+			ips=()
+			ipnumber=1
+			if [ $webservers -gt 0 ]; then
+				# write the inventory category
+				sudo echo [webservers] >> hosts
+
+				webips=()
+				webnames=()
+				# for the amount of webservers write to hosts file
+				for ((i = 1 ; i <= $webservers ; i++)); do
+					# name for VM based on customer and number
+					vmname="$customer_name"-"test01-web"$i
+					webnames[$i]=$vmname
+
+					# write IP addressm customerID . IPaddress
+					ipaddress=10.0."$dirNumber"."$ipCount"
+					webips[$i]=$ipaddress
+					ips[$ipnumber]=$ipaddress
+					ipnumber=$((ipnumber+1))
+					# default user
+					user=vagrant
+
+					# write to hosts file
+					echo $vmname $ipaddress $user
+					sudo echo $vmname ansible_host="$ipaddress" ansible_user="$user" >> $custompath/$customer_name/hosts
+					# ssh-keyscan $vmname $ipaddress >> ~/.ssh/known_hosts
+					
+					# add +1 to ip address for unique value
+					ipCount=$((ipCount+1))
+				done
+			fi
+			# same thing happends for database servers
+			if [ $dbservers -gt 0 ]; then
+				echo [databaseservers] >> hosts
+				for ((i = 1 ; i <= $dbservers ; i++)); do
+					vmname="$customer_name"-"test01-db"$i
+					ipaddress=10.0."$dirNumber"."$ipCount"
+					ips[$ipnumber]=$ipaddress
+					db_ip=$ipaddress
+					ipnumber=$((ipnumber+1))
+					user=vagrant
+					echo $vmname $ipaddress $user
+					sudo echo $vmname ansible_host="$ipaddress" ansible_user="$user" >> $custompath/$customer_name/hosts
+					# ssh-keyscan $vmname $ipaddress >> ~/.ssh/known_hosts 
+					ipCount=$((ipCount+1))
+				
+				done
+			fi
+
+			# same thing happends for loadbalancers
+			if [ $lbs -gt 0 ]; then
+			echo [loadbalancers] >> hosts
+			for ((i = 1 ; i <= $lbs ; i++)); do
+				vmname="$customer_name"-"test01-lb"$i
+				ipaddress=10.0."$dirNumber"."$ipCount"
+				lbip=$ipaddress
+				ips[$ipnumber]=$ipaddress
+				ipnumber=$((ipnumber+1))
+				user=vagrant
+				echo $vmname $ipaddress $user
+				sudo echo $vmname ansible_host="$ipaddress" ansible_user="$user" >> $custompath/$customer_name/hosts
+				# ssh-keyscan $vmname $ipaddress >> ~/.ssh/known_hosts
+				ipCount=$((ipCount+1))
+			done
+			
+			# boot the VMs for the user
+			echo "Booting up VMs, please be patient."
+			# echo ${webips[1]}
+			# echo "test"
+			# echo ${webips[2]}
+			vagrant up &
+			process_id=$!
+			wait
+			for ((i = 1 ; i <= ${#ips[@]} ; i++)); do ssh-keyscan -t rsa ${ips[$i]} >> ~/.ssh/known_hosts ; done
+			wait
+			ansible-playbook ~/VM2/playbook.yml -i hosts --extra-vars "web1_name="${webnames[1]}" web1_ip="${webips[1]}" web2_name="${webnames[2]}" web2_ip="${webips[2]}" lb_ip="$lbip" db_ip="$dp_ip
+			fi
+		fi
+	else
+		echo "this is not a valid option."
+	fi
+
+exit
