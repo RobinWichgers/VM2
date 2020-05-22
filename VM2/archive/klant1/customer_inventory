@@ -1,0 +1,4 @@
+[all:vars]
+ansible_python_interpreter=/usr/bin/python3
+[webservers]
+klant1-test01-web01 ansible_host=10.0.1.11 ansible_user=vagrant

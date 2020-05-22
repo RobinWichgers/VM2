@@ -1,0 +1,36 @@
+---
+# update the cache
+- name: update database cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+# Install the  required packages
+- name: install database packages
+  apt:
+    name: "{{ packages }}"
+    state: latest
+  vars:
+    packages:
+      - python3-pip
+      - python3-mysqldb
+      - mysql-server
+      
+# create a new user with a password, for all hosts.
+- name: Create new DB user
+  mysql_user:
+    name: 'robin'
+    password: 'password'
+    priv: '*.*:ALL'
+    host: '%'
+
+# login_unix_socket: /var/run/mysqld/mysqld.sock
+- name: bind database IP
+  command:
+    cmd: sed -i "s/127.0.0.1/{{ db_ip }}/1" /etc/mysql/mysql.conf.d/mysqld.cnf
+
+# restart the mysql service
+- name: restart mysql
+  service:
+    name: mysql
+    state: restarted

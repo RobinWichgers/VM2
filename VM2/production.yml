@@ -1,0 +1,28 @@
+---
+- hosts: webservers
+  become: true
+  vars:
+    db_ip: "{{ db_ip }}"
+  roles: 
+    - webserver
+- hosts: loadbalancers
+  vars:
+    haproxy_app_name: "name"
+    haproxy_ip: "{{ lb_ip }}"
+    haproxy_mode: http
+    haproxy_enable_stats: enable
+    haproxy_algorithm: roundrobin
+    haproxy_backend_servers:
+      - {name: "{{ web1_name }}", ip: "{{ web1_ip }}", port: 80, paramstring: cookie A check}
+      - {name: "{{ web2_name }}", ip: "{{ web2_ip }}", port: 80, paramstring: cookie A check}
+    haproxy_stats_users:
+      - {username: joe, password: soap}
+  become: true
+  roles:
+    - loadbalancer
+- hosts: databaseservers
+  vars:
+    db_ip: "{{ db_ip }}"
+  become: true
+  roles:
+    - databaseserver

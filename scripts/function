@@ -1,0 +1,440 @@
+#! /bin/bash
+
+# function to create servers
+custompath="/home/vagrant/VM2/customers"
+ipcount=20
+clear
+~/scripts/banner
+echo "Welcome! Please select an option."
+echo "[1] Create user"
+echo "[2] Change existing user or environment"
+echo "[3] Delete user environment"
+echo "[4] Delete user"
+read option
+clear
+~/scripts/banner
+if [ $option = '1' ]; then
+	# create a new user
+	echo "Welcome! First we need to create a new customer."
+	read -p "Enter your name here: " _cname
+	clear
+	~/scripts/banner
+	if [ ! -d $custompath/$_cname ]; then
+		mkdir $custompath/$_cname
+		cd $custompath/$_cname
+		echo "Welcome "$_cname"! Would you like to create a new VM environment? Select an option."
+		echo "[1] Create production environment: 2 Webservers, 1 Database & 1 Loadbalancer"
+		echo "[2] Create test environment: 1 Webserver"
+		echo "[3] Create environment later, close script."
+		read newUserOption
+		totalIPS=()
+		totalWebIP=()
+		totalDbIP=()
+		totalLbIP=()
+		ipsindex=1
+		if [ $newUserOption = '1' ]; then
+			dir_number=1
+			dirpath="prod"$dir_number
+			webservers=2
+			databases=1
+			loadbalancers=1
+		elif [ $newUserOption = '2' ]; then
+			dir_number=1
+			dirpath="test"$dir_number
+			webservers=1
+			databases=0
+			loadbalancers=0
+		else
+			exit 0
+		fi
+		mkdir $dirpath
+		cp -rf ~/VM2/basefiles/* $custompath/$_cname/$dirpath
+		cd $custompath/$_cname/$dirpath
+		_envid=$(find ~/VM2/customers/* -mindepth 1 -maxdepth 1 -type d | wc -l)
+
+		sed -i "s/%webservers%/$webservers/1" Vagrantfile
+		sed -i "s/%databaseservers%/$databases/1" Vagrantfile
+		sed -i "s/%loadbalancers%/$loadbalancers/1" Vagrantfile
+		sed -i "s/%customerID%/$_envid/1" Vagrantfile 
+		sed -i "s/%ipaddress%/$ipcount/1" Vagrantfile
+		sed -i "s/%customerName%/$_cname/1" Vagrantfile 
+		sed -i "s/%environment%/$dirpath/1" Vagrantfile
+		echo "[all:vars]" >> hosts
+		echo "ansible_python_interpreter=/usr/bin/python3" >> hosts
+
+		if [ $webservers -gt 0 ]; then
+			# write the inventory category
+			echo [webservers] >> hosts
+
+			# for the amount of webservers write to hosts file
+			for ((i = 1 ; i <= $webservers ; i++)); do
+				# name for VM based on customer and number
+				vmname="$_cname"-"$dirpath-web"$i
+
+				# write IP addressm customerID . IPaddress
+				ipaddress=10.0."$_envid"."$ipcount"
+				totalIPS[$ipsindex]=$ipaddress
+				totalWebIP[$i]=$ipaddress		
+				ipsindex=$((ipsindex+1))
+
+				# default user
+				user=vagrant
+
+				# write to hosts file
+				echo $vmname $ipaddress $user
+				echo $vmname ansible_host="$ipaddress" ansible_user="$user" >> $custompath/$_cname/$dirpath/hosts
+				# ssh-keyscan $vmname $ipaddress >> ~/.ssh/known_hosts
+				
+				# add +1 to ip address for unique value
+				ipcount=$((ipcount+1))
+			done
+
+		fi
+		if [ $databases -gt 0 ]; then
+			# write the inventory category
+			echo [databaseservers] >> hosts
+
+			# for the amount of webservers write to hosts file
+			for ((i = 1 ; i <= $databases ; i++)); do
+				# name for VM based on customer and number
+				vmname="$_cname"-"$dirpath-db"$i
+
+				# write IP addressm customerID . IPaddress
+				ipaddress=10.0."$_envid"."$ipcount"
+				totalIPS[$ipsindex]=$ipaddress
+				totalDbIP[$i]=$ipaddress		
+				ipsindex=$((ipsindex+1))
+
+				# default user
+				user=vagrant
+
+				# write to hosts file
+				echo $vmname $ipaddress $user
+				echo $vmname ansible_host="$ipaddress" ansible_user="$user" >> $custompath/$_cname/$dirpath/hosts
+				# ssh-keyscan $vmname $ipaddress >> ~/.ssh/known_hosts
+				
+				# add +1 to ip address for unique value
+				ipcount=$((ipcount+1))
+			done
+		fi
+		if [ $loadbalancers -gt 0 ]; then
+			# write the inventory category
+			echo [loadbalancers] >> hosts
+
+			# for the amount of webservers write to hosts file
+			for ((i = 1 ; i <= $loadbalancers ; i++)); do
+				# name for VM based on customer and number
+				vmname="$_cname"-"$dirpath-lb"$i
+
+				# write IP addressm customerID . IPaddress
+				ipaddress=10.0."$_envid"."$ipcount"
+				totalIPS[$ipsindex]=$ipaddress
+				totalLbIP[$i]=$ipaddress		
+				ipsindex=$((ipsindex+1))
+
+				# default user
+				user=vagrant
+
+				# write to hosts file
+				echo $vmname $ipaddress $user
+				echo $vmname ansible_host="$ipaddress" ansible_user="$user" >> $custompath/$_cname/$dirpath/hosts
+				# ssh-keyscan $vmname $ipaddress >> ~/.ssh/known_hosts
+				
+				# add +1 to ip address for unique value
+				ipcount=$((ipcount+1))
+			done
+			
+		fi
+
+		vagrant up &
+		process_id=$!
+		wait
+		touch ips
+		for ((i = 1 ; i <= ${#totalIPS[@]} ; i++)); do 
+			ssh-keyscan -t rsa ${totalIPS[$i]} >> ~/.ssh/known_hosts
+			echo ${totalIPS[$i]} >> ips
+
+		done
+		wait
+		if [ $newUserOption = '1' ]; then
+			ansible-playbook ~/VM2/production.yml -i hosts --extra-vars "web1_name="web1" web1_ip="${totalWebIP[1]}" web2_name="web2" web2_ip="${totalWebIP[2]}" lb_ip="${totalLbIP[1]}" db_ip="${totalDbIP[1]}
+		else
+			ansible-playbook ~/VM2/test.yml -i hosts
+		fi
+	else
+		echo "this user exists already"
+	fi	
+
+elif [ $option = '2' ]; then
+	# offer to create new environment
+	echo "Available names: "
+	dir $custompath
+	echo " "
+	read -p "Enter your name here: " _cname
+	clear
+	~/scripts/banner
+
+	if [[ ! -d $custompath/$_cname ]]; then
+		echo "Not a valid name"
+		exit 0
+	else
+
+		echo "What would you like to do, $_cname?"
+		echo "[1] Change existing environment"
+		echo "[2] Create new environment"
+		read changeenvironment
+		clear
+		~/scripts/banner
+
+		if [ $changeenvironment = '1' ]; then
+			cd $custompath/$_cname
+			dir 
+			echo "Please select an environment to change"
+			read customdir
+			if [[ -d $custompath/$_cname/$customdir ]]; then
+				cd $customdir
+				echo "How much memory should a VM have?"
+				echo "[1] 1024"
+				echo "[2] 512"
+				read memory
+
+				if [[ $memory = '1' ]]; then
+					newmemory=1024
+				else
+					newmemory=512
+				fi
+				sed -i  "s/vb.memory.*/vb.memory = $newmemory/1" Vagrantfile
+				vagrant destroy -f
+				wait
+				vagrant up &
+			else
+				echo "Directory does not exist, closing..."
+				clear
+				exit 0
+			fi		
+
+		elif [[ $changeenvironment = '2' ]]; then
+			if [ -d $custompath/$_cname ]; then
+				echo "Welcome "$_cname"! Would you like to create a new VM environment? Select an option."
+				echo "[1] Create production environment: 2 Webservers, 1 Database & 1 Loadbalancer"
+				echo "[2] Create test environment: 1 Webserver"
+				echo "[3] Create environment later, close script."
+				read _environmentkind
+				clear
+				~/scripts/banner
+
+				if [ $_environmentkind = '1' ]; then
+					# echo "production"
+					var="prod"
+					webservers=2
+					databases=1
+					loadbalancers=1
+
+				elif [ $_environmentkind = '2' ]; then
+					# check if there exists a prod environment
+					var="test"
+					webservers=1
+					databases=0
+					loadbalancers=0
+				else
+					echo "Closing script, bye"
+					exit 0
+				fi
+
+				dirID=1
+				while true; do
+					if [ ! -d $custompath/$_cname/$var$dirID ]; then
+						echo "directory $dirID doesnt exist yet, creating!"
+						mkdir $custompath/$_cname/$var$dirID
+						break
+					else
+						dirID=$((dirID+1))
+					fi
+				done
+
+				totalIPS=()
+				totalWebIP=()
+				totalDbIP=()
+				totalLbIP=()
+				ipsindex=1
+				dirpath=$var$dirID
+				
+
+				cp -rf ~/VM2/basefiles/* $custompath/$_cname/$dirpath
+				cd $custompath/$_cname/$dirpath
+				_envid=$(find ~/VM2/customers/* -mindepth 1 -maxdepth 1 -type d | wc -l)
+
+				sed -i "s/%webservers%/$webservers/1" Vagrantfile
+				sed -i "s/%databaseservers%/$databases/1" Vagrantfile
+				sed -i "s/%loadbalancers%/$loadbalancers/1" Vagrantfile
+				sed -i "s/%customerID%/$_envid/1" Vagrantfile 
+				sed -i "s/%ipaddress%/$ipcount/1" Vagrantfile
+				sed -i "s/%customerName%/$_cname/1" Vagrantfile 
+				sed -i "s/%environment%/$dirpath/1" Vagrantfile
+				echo "[all:vars]" >> hosts
+				echo "ansible_python_interpreter=/usr/bin/python3" >> hosts
+
+				if [ $webservers -gt 0 ]; then
+					# write the inventory category
+					echo [webservers] >> hosts
+
+					# for the amount of webservers write to hosts file
+					for ((i = 1 ; i <= $webservers ; i++)); do
+						# name for VM based on customer and number
+						vmname="$_cname"-"$dirpath-web"$i
+
+						# write IP addressm customerID . IPaddress
+						ipaddress=10.0."$_envid"."$ipcount"
+						totalIPS[$ipsindex]=$ipaddress
+						totalWebIP[$i]=$ipaddress		
+						ipsindex=$((ipsindex+1))
+
+						# default user
+						user=vagrant
+
+						# write to hosts file
+						echo $vmname $ipaddress $user
+						echo $vmname ansible_host="$ipaddress" ansible_user="$user" >> $custompath/$_cname/$dirpath/hosts
+						# ssh-keyscan $vmname $ipaddress >> ~/.ssh/known_hosts
+						
+						# add +1 to ip address for unique value
+						ipcount=$((ipcount+1))
+					done
+
+				fi
+				if [ $databases -gt 0 ]; then
+					# write the inventory category
+					echo [databaseservers] >> hosts
+
+					# for the amount of webservers write to hosts file
+					for ((i = 1 ; i <= $databases ; i++)); do
+						# name for VM based on customer and number
+						vmname="$_cname"-"$dirpath-db"$i
+
+						# write IP addressm customerID . IPaddress
+						ipaddress=10.0."$_envid"."$ipcount"
+						totalIPS[$ipsindex]=$ipaddress
+						totalDbIP[$i]=$ipaddress		
+						ipsindex=$((ipsindex+1))
+
+						# default user
+						user=vagrant
+
+						# write to hosts file
+						echo $vmname $ipaddress $user
+						echo $vmname ansible_host="$ipaddress" ansible_user="$user" >> $custompath/$_cname/$dirpath/hosts
+						# ssh-keyscan $vmname $ipaddress >> ~/.ssh/known_hosts
+						# add +1 to ip address for unique value
+						ipcount=$((ipcount+1))
+					done
+				fi
+				if [ $loadbalancers -gt 0 ]; then
+					# write the inventory category
+					echo [loadbalancers] >> hosts
+
+					# for the amount of webservers write to hosts file
+					for ((i = 1 ; i <= $loadbalancers ; i++)); do
+						# name for VM based on customer and number
+						vmname="$_cname"-"$dirpath-lb"$i
+
+						# write IP addressm customerID . IPaddress
+						ipaddress=10.0."$_envid"."$ipcount"
+						totalIPS[$ipsindex]=$ipaddress
+						totalLbIP[$i]=$ipaddress		
+						ipsindex=$((ipsindex+1))
+
+						# default user
+						user=vagrant
+
+						# write to hosts file
+						echo $vmname $ipaddress $user
+						echo $vmname ansible_host="$ipaddress" ansible_user="$user" >> $custompath/$_cname/$dirpath/hosts
+						# ssh-keyscan $vmname $ipaddress >> ~/.ssh/known_hosts
+						
+						# add +1 to ip address for unique value
+						ipcount=$((ipcount+1))
+					done		
+				fi
+				vagrant up &
+				process_id=$!
+				wait
+				touch ips
+				for ((i = 1 ; i <= ${#totalIPS[@]} ; i++)); do 
+					ssh-keyscan -t rsa ${totalIPS[$i]} >> ~/.ssh/known_hosts
+					echo ${totalIPS[$i]} >> ips
+				done
+				wait
+				if [ $var = 'prod' ]; then
+					ansible-playbook ~/VM2/production.yml -i hosts --extra-vars "web1_name="web1" web1_ip="${totalWebIP[1]}" web2_name="web2" web2_ip="${totalWebIP[2]}" lb_ip="${totalLbIP[1]}" db_ip="${totalDbIP[1]}
+				else
+					ansible-playbook ~/VM2/test.yml -i hosts
+				fi
+			else
+				echo "This user does not exist"
+			fi
+		fi
+	fi
+	
+
+elif [ $option = '3' ]; then
+	# delete environment
+
+	echo "Available names: "
+	dir $custompath
+	echo " "
+	read -p "Enter your name here: " _cname
+	clear
+	~/scripts/banner
+	if [ -d $custompath/$_cname ]; then
+		echo " "
+		echo "Available directories: "
+		dir $custompath/$_cname
+		echo " "
+		read -p "Which directory do you want to remove? " delete_directory
+		clear
+		
+		if [ -d $custompath/$_cname/$delete_directory ]; then
+			delete_directory=$custompath/$_cname/$delete_directory
+		export delete_directory
+		cd $delete_directory
+		~/scripts/clear
+		else
+			echo "this directory does not exist"
+		fi
+	else
+		echo "this user does not exist!"
+	fi
+elif [[ $option = '4' ]]; then
+	echo "Available names: "
+	dir $custompath
+	echo " "
+	read -p "enter your name here: " _cname
+	clear
+	~/scripts/banner
+	if [ -d $custompath/$_cname ]; then
+		qty=$(find $custompath/$_cname -mindepth 1 -maxdepth 1 -type d | wc -l)
+		if [[ qty -gt 0 ]]; then
+			for directory in $custompath/$_cname/* ; do
+				directory=$(basename $directory)
+				if [[ -d $custompath/$_cname/$directory ]]; then
+					echo "Removing: "$directory
+					cd $custompath/$_cname/$directory
+					~/scripts/clear
+				else
+					echo "directory $directory does not exist"
+				fi
+			done
+			wait
+			rm -rf $custompath/$_cname
+		else
+			echo "No sub directories found, deleting $_cname"
+			rm -rf $custompath/$_cname
+		fi
+	else
+		echo "User does not exist"
+	fi
+else
+	echo "Not an valid option, closing script."
+	exit 0
+fi
+exit
