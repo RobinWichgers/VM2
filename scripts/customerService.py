@@ -256,32 +256,48 @@ elif option == 2:
 	_cname = raw_input("What is your name?: ")
 	if directoryExists(custompath + _cname) == False:
 		header()
-		print("Choose an environment:")
-		print
-		# Show available directories to choose from
-		os.chdir(custompath + _cname)
-		subprocess.call(["dir"])
-		print
-		option = raw_input("Choose your option: ")
-		if directoryExists(custompath+_cname+"/"+option) == False:
-			# change existing directory, probably memory in vagrantfile
+		print("Welcome, "+_cname+", what would you like to do?")
+		print("[1] Add new environment")
+		print("[2] Change existing environment")
+		option = input("Choose your option: ")
+		if option == 1:
 			header()
-			print("Choose the amount of memory for the VMs:")
-			print("[1] 1536 MB")
-			print("[2] 1024 MB")
-			print("[3] 512 MB")
-			memory = input("Choose your option: ")
-			if memory == 1:
-				qty = 1536
-			elif memory == 2:
-				qty = 1024
+			print("Hi, "+_cname+", what would you like to do?")
+			print("[1] Create production environment: 2 webservers, 1 database, 1 loadbalancer")
+			print("[2] Create test environment: 1 webserver")
+			option = input("Choose your option: ")
+			if option == 1:
+				createNewEnvironment("prod", _cname)
 			else:
-				qty = 512
-			print("Changed memory to " + str(qty))
-			replaceMemory(custompath+_cname+"/"+option, str(qty))
+				createNewEnvironment("test", _cname)
+		else:	
+			header()
+			print("Choose an environment:")
 			print
-		else:
-			print("not valid")
+			# Show available directories to choose from
+			os.chdir(custompath + _cname)
+			subprocess.call(["dir"])
+			print
+			option = raw_input("Choose your option: ")
+			if directoryExists(custompath+_cname+"/"+option) == False:
+				# change existing directory, probably memory in vagrantfile
+				header()
+				print("Choose the amount of memory for the VMs:")
+				print("[1] 1536 MB")
+				print("[2] 1024 MB")
+				print("[3] 512 MB")
+				memory = input("Choose your option: ")
+				if memory == 1:
+					qty = 1536
+				elif memory == 2:
+					qty = 1024
+				else:
+					qty = 512
+				print("Changed memory to " + str(qty))
+				replaceMemory(custompath+_cname+"/"+option, str(qty))
+				print
+			else:
+				print("not valid")
 	else:
 		print("Directory does not exist")
 

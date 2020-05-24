@@ -1,0 +1,9 @@
+[all:vars]
+ansible_python_interpreter=/usr/bin/python3
+[webservers]
+Robo-prod1-web1 ansible_host=10.0.2.20 ansible_user=vagrant
+Robo-prod1-web2 ansible_host=10.0.2.21 ansible_user=vagrant
+[databaseservers]
+Robo-prod1-db1 ansible_host=10.0.2.22 ansible_user=vagrant
+[loadbalancers]
+Robo-prod1-lb1 ansible_host=10.0.2.23 ansible_user=vagrant

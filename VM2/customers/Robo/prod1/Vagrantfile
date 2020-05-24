@@ -1,0 +1,67 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+# variables inserted by ~/scripts/customerService bash script
+webservers = 2
+databaseservers = 1
+loadbalancers = 1
+customerID = 2
+ipaddress = 20
+customerName = "Robo"
+environment = "prod1"
+
+Vagrant.configure("2") do |cfg|
+	# set ssh key path
+	cfg.ssh.insert_key = false
+	cfg.ssh.private_key_path = ["/home/vagrant/.ssh/id_rsa","~/.vagrant.d/insecure_private_key"]
+
+	# loop through webservers amount
+	(1..webservers).each do |i|
+		# define the webserver
+		cfg.vm.define "#{customerName}-#{environment}-web#{i}" do |websv|
+			# set specific box type
+			websv.vm.box = "ubuntu/xenial64"
+
+			# set network address
+			websv.vm.network "private_network", ip: "10.0.#{customerID}.#{ipaddress}"
+
+			# set hostname
+			websv.vm.hostname = "#{customerName}-#{environment}-web#{i}"
+
+			# save public key to file in VM
+			websv.vm.provision "file", source: "/home/vagrant/.ssh/id_rsa.pub", destination: "~/.ssh/authorized_keys"
+			
+			# create new unique ID, similar formula as in bash script
+			ipaddress = ipaddress + 1
+			websv.vm.provider "virtualbox" do |vb|
+				# set server memory in MB
+				vb.memory = 512
+			end
+		end
+	end
+
+	(1..databaseservers).each do |i|
+		cfg.vm.define "#{customerName}-#{environment}-db#{i}" do |dbsv|
+			dbsv.vm.box = "ubuntu/xenial64"
+			dbsv.vm.network "private_network", ip: "10.0.#{customerID}.#{ipaddress}"
+			dbsv.vm.hostname = "#{customerName}-#{environment}-db#{i}"
+			dbsv.vm.provision "file", source: "/home/vagrant/.ssh/id_rsa.pub", destination: "~/.ssh/authorized_keys"
+			ipaddress = ipaddress + 1
+			dbsv.vm.provider "virtualbox" do |vb|
+				vb.memory = 512
+			end
+		end
+	end
+
+	(1..loadbalancers).each do |i|
+		cfg.vm.define "#{customerName}-#{environment}-lb#{i}" do |lb|
+			lb.vm.box = "ubuntu/xenial64"
+			lb.vm.network "private_network", ip: "10.0.#{customerID}.#{ipaddress}"
+			lb.vm.hostname = "#{customerName}-#{environment}-lb#{i}"
+			lb.vm.provision "file", source: "/home/vagrant/.ssh/id_rsa.pub", destination: "~/.ssh/authorized_keys"
+			ipaddress = ipaddress + 1
+			lb.vm.provider "virtualbox" do |vb|
+				vb.memory = 512
+			end
+		end
+	end
+end
