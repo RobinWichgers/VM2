@@ -1,0 +1,20 @@
+---
+- name: install php-fpm
+  apt:
+    name: php
+    state: latest
+
+# - name: install php common
+#   apt:
+#     name: php7.3-common
+#     state: latest
+
+- name: install php sql
+  package:
+    name: php-mysql
+    state: latest
+
+- name: restart apache
+  service:
+    name: apache2
+    state: started

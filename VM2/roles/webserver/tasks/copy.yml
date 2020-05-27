@@ -1,0 +1,20 @@
+---
+- name: copy website file
+  copy:
+    src: ~/VM2/roles/webserver/files/index.php
+    dest: /var/www/html/
+    owner: root
+    group: root
+    mode: '0644'
+- name: set php to default
+  copy:
+    src: ~/VM2/roles/webserver/files/dir.conf
+    dest: /etc/apache2/mods-enabled/dir.conf
+- name: restart apache2
+  service:
+    name: apache2
+    state: restarted
+- name: replace database ip
+  command:
+    cmd: sed -i "s/%IPADDRESS%/{{ db_ip }}/1" /var/www/html/index.php
+
