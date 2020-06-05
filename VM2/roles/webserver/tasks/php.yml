@@ -1,20 +1,26 @@
 ---
-- name: install php-fpm
+# Clear cache
+- name: clear cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+# Install php package
+- name: install php
   apt:
     name: php
     state: latest
-
-# - name: install php common
-#   apt:
-#     name: php7.3-common
-#     state: latest
-
+# Install mysql for php
 - name: install php sql
   package:
     name: php-mysql
     state: latest
-
+- name: install libapache2
+  apt:
+    name: libapache2-mod-php
+    state: latest
+# Restart apache service
 - name: restart apache
   service:
     name: apache2
     state: started
+    
