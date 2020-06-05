@@ -1,0 +1,9 @@
+[all:vars]
+ansible_python_interpreter=/usr/bin/python3
+[webservers]
+TestGebruiker-prod1-web1 ansible_host=10.0.5.20 ansible_user=vagrant
+TestGebruiker-prod1-web2 ansible_host=10.0.5.21 ansible_user=vagrant
+[databaseservers]
+TestGebruiker-prod1-db1 ansible_host=10.0.5.22 ansible_user=vagrant
+[loadbalancers]
+TestGebruiker-prod1-lb1 ansible_host=10.0.5.23 ansible_user=vagrant

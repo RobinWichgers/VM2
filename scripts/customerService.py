@@ -135,7 +135,7 @@ def createNewEnvironment(type, customerName):
 		subprocess.call(["ansible-playbook", "-i", "hosts", "/home/vagrant/VM2/production.yml", "-e", var])
 	else:
 		# Execute the ansible playbook for test
-		subprocess.call(["ansible-playbook", "-i", "hosts", "/home/vagrant/VM2/test.yml"])
+		subprocess.call(["ansible-playbook", "-i", "hosts", "/home/vagrant/VM2/test.yml", "-e", "db_ip=127.0.0.1"])
 
 # Destroy environment, remove VMs and remove public keys from ~/.ssh/known_hosts
 def destroyEnvironment(path):
@@ -194,6 +194,7 @@ def replaceMemory(path, amount):
 	file = open(path + "/Vagrantfile", "w")
 	file.write(re.sub("vb.memory = .[0-9][0-9][0-9]*", "vb.memory = "+amount, text))
 	file.close()
+	subprocess.call(["vagrant","reload"])
 
 # Set default variables in vagrantfile using json object
 def replaceVagrant(path, object):

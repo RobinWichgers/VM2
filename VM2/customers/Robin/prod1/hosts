@@ -1,9 +1,9 @@
 [all:vars]
 ansible_python_interpreter=/usr/bin/python3
 [webservers]
-Robin-prod1-web1 ansible_host=10.0.1.20 ansible_user=vagrant
-Robin-prod1-web2 ansible_host=10.0.1.21 ansible_user=vagrant
+Robin-prod1-web1 ansible_host=10.0.4.20 ansible_user=vagrant
+Robin-prod1-web2 ansible_host=10.0.4.21 ansible_user=vagrant
 [databaseservers]
-Robin-prod1-db1 ansible_host=10.0.1.22 ansible_user=vagrant
+Robin-prod1-db1 ansible_host=10.0.4.22 ansible_user=vagrant
 [loadbalancers]
-Robin-prod1-lb1 ansible_host=10.0.1.23 ansible_user=vagrant
+Robin-prod1-lb1 ansible_host=10.0.4.23 ansible_user=vagrant

@@ -1,23 +1,27 @@
 ---
+# Clear cache
 - name: clear cache
   apt:
     update_cache: yes
     cache_valid_time: 3600
-
+# Install the HAProxy service
 - name: install haproxy
   apt: 
     name: haproxy
     state: present
-- name: init haproxy
+# Change some default config values
+- name: Initiate HAProxy
   replace:
     path: '/etc/default/haproxy'
     regexp: 'ENABLED=0'
     replace: 'ENABLED=1'
+# Set the HAproxy config to our own, make a backup.
 - name: Update haproxy config
   template:
     src: 'templates/haproxy.cfg'
     dest: '/etc/haproxy/haproxy.cfg'
     backup: yes
+# Restart HAproxy service
 - name: restart haproxy
   service:
     name: haproxy

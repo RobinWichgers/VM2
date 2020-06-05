@@ -1,13 +1,13 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 # variables inserted by ~/scripts/customerService bash script
-webservers = 2
-databaseservers = 1
-loadbalancers = 1
-customerID = 4
+webservers = 1
+databaseservers = 0
+loadbalancers = 0
+customerID = 2
 ipaddress = 20
-customerName = "Robin"
-environment = "prod1"
+customerName = "Bart"
+environment = "test1"
 
 Vagrant.configure("2") do |cfg|
 	# set ssh key path
